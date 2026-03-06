@@ -39,3 +39,17 @@ type ModuleCode struct {
 	ModuleKind string `json:"ВидМодуля"`
 	Code       string `json:"Код"`
 }
+
+// QueryRequest is the request body for the query endpoint.
+type QueryRequest struct {
+	Query string `json:"query"`
+	Limit int    `json:"limit"`
+}
+
+// QueryResult is the response from the query endpoint.
+type QueryResult struct {
+	Columns   []string `json:"columns"`
+	Rows      [][]any  `json:"rows"`
+	Total     int      `json:"total"`
+	Truncated bool     `json:"truncated"`
+}
