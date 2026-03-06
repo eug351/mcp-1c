@@ -18,7 +18,7 @@ func TestMetadataHandler(t *testing.T) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"Справочники":["Контрагенты","Номенклатура"],"Документы":["РеализацияТоваровУслуг"],"Регистры":["КурсыВалют"]}`))
+		w.Write([]byte(`{"Справочники":["Контрагенты","Номенклатура"],"Документы":["РеализацияТоваровУслуг"],"РегистрыСведений":["КурсыВалют"],"РегистрыНакопления":["ОстаткиТоваров"],"РегистрыБухгалтерии":["Хозрасчетный"],"ОбщиеМодули":["ОбщегоНазначения"]}`))
 	}))
 	defer mockServer.Close()
 
@@ -45,7 +45,7 @@ func TestMetadataHandler(t *testing.T) {
 	}
 
 	// Verify the text contains key metadata items.
-	for _, want := range []string{"Контрагенты", "Номенклатура", "РеализацияТоваровУслуг", "КурсыВалют"} {
+	for _, want := range []string{"Контрагенты", "Номенклатура", "РеализацияТоваровУслуг", "КурсыВалют", "ОстаткиТоваров", "Хозрасчетный", "ОбщегоНазначения"} {
 		if !contains(tc.Text, want) {
 			t.Errorf("expected text to contain %q, got:\n%s", want, tc.Text)
 		}

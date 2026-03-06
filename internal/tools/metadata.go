@@ -39,29 +39,30 @@ func NewMetadataHandler(client *onec.Client) mcp.ToolHandler {
 // formatMetadataTree formats the metadata tree as markdown text.
 func formatMetadataTree(tree *onec.MetadataTree) string {
 	var b strings.Builder
-
 	b.WriteString("# Метаданные конфигурации 1С\n\n")
 
-	b.WriteString("## Справочники\n")
-	for _, name := range tree.Catalogs {
-		b.WriteString("- ")
-		b.WriteString(name)
-		b.WriteByte('\n')
+	sections := []struct {
+		title string
+		items []string
+	}{
+		{"Справочники", tree.Catalogs},
+		{"Документы", tree.Documents},
+		{"Регистры сведений", tree.InformationRegisters},
+		{"Регистры накопления", tree.AccumulationRegisters},
+		{"Регистры бухгалтерии", tree.AccountingRegisters},
+		{"Общие модули", tree.CommonModules},
 	}
-	b.WriteByte('\n')
 
-	b.WriteString("## Документы\n")
-	for _, name := range tree.Documents {
-		b.WriteString("- ")
-		b.WriteString(name)
-		b.WriteByte('\n')
-	}
-	b.WriteByte('\n')
-
-	b.WriteString("## Регистры\n")
-	for _, name := range tree.Registers {
-		b.WriteString("- ")
-		b.WriteString(name)
+	for _, s := range sections {
+		if len(s.items) == 0 {
+			continue
+		}
+		fmt.Fprintf(&b, "## %s\n", s.title)
+		for _, name := range s.items {
+			b.WriteString("- ")
+			b.WriteString(name)
+			b.WriteByte('\n')
+		}
 		b.WriteByte('\n')
 	}
 
