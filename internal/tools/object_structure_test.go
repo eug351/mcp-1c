@@ -88,6 +88,60 @@ func TestObjectStructureHandler(t *testing.T) {
 	}
 }
 
+func TestObjectStructureHandler_Register(t *testing.T) {
+	const mockResponse = `{
+		"Имя": "ТоварыНаСкладах",
+		"Синоним": "Товары на складах",
+		"Измерения": [
+			{"Имя": "Номенклатура", "Синоним": "Номенклатура", "Тип": "СправочникСсылка.Номенклатура"},
+			{"Имя": "Склад", "Синоним": "Склад", "Тип": "СправочникСсылка.Склады"}
+		],
+		"Ресурсы": [
+			{"Имя": "Количество", "Синоним": "Количество", "Тип": "Число"}
+		],
+		"Реквизиты": []
+	}`
+
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/object/AccumulationRegister/ТоварыНаСкладах" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(mockResponse))
+	}))
+	defer mockServer.Close()
+
+	client := onec.NewClient(mockServer.URL, "", "")
+	handler := NewObjectStructureHandler(client)
+
+	args, _ := json.Marshal(map[string]string{
+		"object_type": "AccumulationRegister",
+		"object_name": "ТоварыНаСкладах",
+	})
+	req := &mcp.CallToolRequest{
+		Params: &mcp.CallToolParamsRaw{
+			Name:      "get_object_structure",
+			Arguments: args,
+		},
+	}
+
+	result, err := handler(context.Background(), req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	tc := result.Content[0].(*mcp.TextContent)
+	for _, want := range []string{
+		"ТоварыНаСкладах", "Измерения", "Номенклатура", "Склад",
+		"Ресурсы", "Количество",
+	} {
+		if !contains(tc.Text, want) {
+			t.Errorf("expected text to contain %q, got:\n%s", want, tc.Text)
+		}
+	}
+}
+
 func TestObjectStructureHandler_MissingArgs(t *testing.T) {
 	client := onec.NewClient("http://localhost:0", "", "")
 	handler := NewObjectStructureHandler(client)

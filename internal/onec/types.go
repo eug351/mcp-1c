@@ -15,7 +15,9 @@ type ObjectStructure struct {
 	Name         string        `json:"Имя"`
 	Synonym      string        `json:"Синоним"`
 	Attributes   []Attribute   `json:"Реквизиты"`
-	TabularParts []TabularPart `json:"ТабличныеЧасти"`
+	TabularParts []TabularPart `json:"ТабличныеЧасти,omitempty"`
+	Dimensions   []Attribute   `json:"Измерения,omitempty"`
+	Resources    []Attribute   `json:"Ресурсы,omitempty"`
 }
 
 // Attribute represents a metadata object attribute.
