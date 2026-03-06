@@ -94,7 +94,7 @@ func formatMetadataTree(tree map[string][]string) string {
 	}
 
 	// Collect and render unknown categories (forward compatibility).
-	unknown := make([]string, 0)
+	var unknown []string
 	for key := range tree {
 		if !rendered[key] {
 			unknown = append(unknown, key)

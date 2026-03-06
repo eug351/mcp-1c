@@ -109,11 +109,27 @@ func RegisterAll(s *mcp.Server) {
 // requiredArg extracts a required argument from the prompt request,
 // returning an error if it is missing or empty.
 func requiredArg(req *mcp.GetPromptRequest, name string) (string, error) {
+	if req.Params == nil || req.Params.Arguments == nil {
+		return "", fmt.Errorf("missing required argument %q", name)
+	}
 	v := req.Params.Arguments[name]
 	if v == "" {
 		return "", fmt.Errorf("missing required argument %q", name)
 	}
 	return v, nil
+}
+
+// promptResult constructs a standard prompt result with a single user message.
+func promptResult(description, text string) (*mcp.GetPromptResult, error) {
+	return &mcp.GetPromptResult{
+		Description: description,
+		Messages: []*mcp.PromptMessage{
+			{
+				Role:    "user",
+				Content: &mcp.TextContent{Text: text},
+			},
+		},
+	}, nil
 }
 
 func handleReviewModule(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
@@ -126,12 +142,9 @@ func handleReviewModule(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetP
 		return nil, err
 	}
 
-	return &mcp.GetPromptResult{
-		Description: fmt.Sprintf("Ревью модуля %s.%s", objectType, objectName),
-		Messages: []*mcp.PromptMessage{
-			{
-				Role: "user",
-				Content: &mcp.TextContent{Text: fmt.Sprintf(`Проведи ревью кода модуля объекта %s "%s".
+	return promptResult(
+		fmt.Sprintf("Ревью модуля %s.%s", objectType, objectName),
+		fmt.Sprintf(`Проведи ревью кода модуля объекта %s "%s".
 
 Шаги:
 1. Используй инструмент get_object_structure чтобы посмотреть структуру объекта (тип: %s, имя: %s)
@@ -143,10 +156,8 @@ func handleReviewModule(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetP
    - Читаемость и именование переменных/процедур
    - Корректность работы с транзакциями и блокировками
 4. Если нужна справка по встроенным функциям — используй инструмент bsl_syntax_help
-5. Предложи конкретные улучшения с примерами кода на языке 1С`, objectType, objectName, objectType, objectName)},
-			},
-		},
-	}, nil
+5. Предложи конкретные улучшения с примерами кода на языке 1С`, objectType, objectName, objectType, objectName),
+	)
 }
 
 func handleWritePosting(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
@@ -155,12 +166,9 @@ func handleWritePosting(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetP
 		return nil, err
 	}
 
-	return &mcp.GetPromptResult{
-		Description: fmt.Sprintf("Обработка проведения документа %s", documentName),
-		Messages: []*mcp.PromptMessage{
-			{
-				Role: "user",
-				Content: &mcp.TextContent{Text: fmt.Sprintf(`Помоги написать обработку проведения для документа "%s".
+	return promptResult(
+		fmt.Sprintf("Обработка проведения документа %s", documentName),
+		fmt.Sprintf(`Помоги написать обработку проведения для документа "%s".
 
 Шаги:
 1. Используй инструмент get_object_structure чтобы посмотреть структуру документа (тип: Document, имя: %s) — реквизиты и табличные части
@@ -172,10 +180,8 @@ func handleWritePosting(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetP
    - Использует запрос для получения данных табличной части с соединениями
    - Контролирует остатки при необходимости (РежимПроведения = РежимПроведенияДокумента.Оперативный)
    - Очищает движения перед формированием новых
-6. Если нужна справка по синтаксису — используй инструмент bsl_syntax_help`, documentName, documentName)},
-			},
-		},
-	}, nil
+6. Если нужна справка по синтаксису — используй инструмент bsl_syntax_help`, documentName, documentName),
+	)
 }
 
 func handleOptimizeQuery(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
@@ -184,12 +190,9 @@ func handleOptimizeQuery(_ context.Context, req *mcp.GetPromptRequest) (*mcp.Get
 		return nil, err
 	}
 
-	return &mcp.GetPromptResult{
-		Description: "Оптимизация запроса 1С",
-		Messages: []*mcp.PromptMessage{
-			{
-				Role: "user",
-				Content: &mcp.TextContent{Text: fmt.Sprintf(`Проанализируй и оптимизируй следующий запрос 1С:
+	return promptResult(
+		"Оптимизация запроса 1С",
+		fmt.Sprintf(`Проанализируй и оптимизируй следующий запрос 1С:
 
 %s
 
@@ -204,19 +207,14 @@ func handleOptimizeQuery(_ context.Context, req *mcp.GetPromptRequest) (*mcp.Get
    - Избыточные подзапросы и временные таблицы
    - Корректность использования РАЗЛИЧНЫЕ, ПЕРВЫЕ, СГРУППИРОВАТЬ
    - Возможность использования пакетных запросов
-5. Предложи оптимизированную версию запроса с пояснениями`, query)},
-			},
-		},
-	}, nil
+5. Предложи оптимизированную версию запроса с пояснениями`, query),
+	)
 }
 
 func handleExplainConfig(_ context.Context, _ *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
-	return &mcp.GetPromptResult{
-		Description: "Объяснение структуры конфигурации 1С",
-		Messages: []*mcp.PromptMessage{
-			{
-				Role: "user",
-				Content: &mcp.TextContent{Text: `Объясни структуру текущей конфигурации 1С.
+	return promptResult(
+		"Объяснение структуры конфигурации 1С",
+		`Объясни структуру текущей конфигурации 1С.
 
 Шаги:
 1. Используй инструмент get_metadata_tree чтобы получить полное дерево метаданных конфигурации
@@ -230,10 +228,8 @@ func handleExplainConfig(_ context.Context, _ *mcp.GetPromptRequest) (*mcp.GetPr
    - Общие модули и их вероятная роль
    - Роли и разграничение доступа
 3. Опиши общую архитектуру конфигурации: какую предметную область она автоматизирует, как связаны основные объекты между собой
-4. Укажи на особенности и возможные проблемы архитектуры`},
-			},
-		},
-	}, nil
+4. Укажи на особенности и возможные проблемы архитектуры`,
+	)
 }
 
 func handleAnalyzeError(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
@@ -242,12 +238,9 @@ func handleAnalyzeError(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetP
 		return nil, err
 	}
 
-	return &mcp.GetPromptResult{
-		Description: "Анализ ошибки 1С",
-		Messages: []*mcp.PromptMessage{
-			{
-				Role: "user",
-				Content: &mcp.TextContent{Text: fmt.Sprintf(`Проанализируй следующую ошибку 1С и помоги её исправить:
+	return promptResult(
+		"Анализ ошибки 1С",
+		fmt.Sprintf(`Проанализируй следующую ошибку 1С и помоги её исправить:
 
 %s
 
@@ -261,10 +254,8 @@ func handleAnalyzeError(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetP
    - Причину ошибки
    - В каких условиях она возникает
    - Как её исправить (с примером кода)
-   - Как предотвратить подобные ошибки в будущем`, errorText)},
-			},
-		},
-	}, nil
+   - Как предотвратить подобные ошибки в будущем`, errorText),
+	)
 }
 
 func handleFindDuplicates(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
@@ -277,12 +268,9 @@ func handleFindDuplicates(_ context.Context, req *mcp.GetPromptRequest) (*mcp.Ge
 		return nil, err
 	}
 
-	return &mcp.GetPromptResult{
-		Description: fmt.Sprintf("Поиск дублей в модуле %s.%s", objectType, objectName),
-		Messages: []*mcp.PromptMessage{
-			{
-				Role: "user",
-				Content: &mcp.TextContent{Text: fmt.Sprintf(`Найди дублирующийся и избыточный код в модулях объекта %s "%s".
+	return promptResult(
+		fmt.Sprintf("Поиск дублей в модуле %s.%s", objectType, objectName),
+		fmt.Sprintf(`Найди дублирующийся и избыточный код в модулях объекта %s "%s".
 
 Шаги:
 1. Используй инструмент get_object_structure чтобы посмотреть структуру объекта (тип: %s, имя: %s)
@@ -296,10 +284,8 @@ func handleFindDuplicates(_ context.Context, req *mcp.GetPromptRequest) (*mcp.Ge
 4. Для каждого найденного дубля предложи рефакторинг:
    - Выделение общей процедуры/функции
    - Параметризация отличающихся частей
-   - Примеры кода после рефакторинга`, objectType, objectName, objectType, objectName)},
-			},
-		},
-	}, nil
+   - Примеры кода после рефакторинга`, objectType, objectName, objectType, objectName),
+	)
 }
 
 func handleWriteReport(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
@@ -308,12 +294,9 @@ func handleWriteReport(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetPr
 		return nil, err
 	}
 
-	return &mcp.GetPromptResult{
-		Description: "Помощь с написанием отчёта 1С",
-		Messages: []*mcp.PromptMessage{
-			{
-				Role: "user",
-				Content: &mcp.TextContent{Text: fmt.Sprintf(`Помоги написать отчёт 1С по следующему описанию:
+	return promptResult(
+		"Помощь с написанием отчёта 1С",
+		fmt.Sprintf(`Помоги написать отчёт 1С по следующему описанию:
 
 %s
 
@@ -326,10 +309,8 @@ func handleWriteReport(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetPr
    - Текст запроса для СКД (системы компоновки данных) или прямого вывода
    - Описание структуры настроек СКД (группировки, поля, отборы, условное оформление)
    - Код модуля отчёта если нужна программная обработка данных
-   - Рекомендации по оптимизации при больших объёмах данных`, description)},
-			},
-		},
-	}, nil
+   - Рекомендации по оптимизации при больших объёмах данных`, description),
+	)
 }
 
 func handleExplainObject(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
@@ -342,12 +323,9 @@ func handleExplainObject(_ context.Context, req *mcp.GetPromptRequest) (*mcp.Get
 		return nil, err
 	}
 
-	return &mcp.GetPromptResult{
-		Description: fmt.Sprintf("Объяснение объекта %s.%s", objectType, objectName),
-		Messages: []*mcp.PromptMessage{
-			{
-				Role: "user",
-				Content: &mcp.TextContent{Text: fmt.Sprintf(`Объясни назначение и устройство объекта %s "%s".
+	return promptResult(
+		fmt.Sprintf("Объяснение объекта %s.%s", objectType, objectName),
+		fmt.Sprintf(`Объясни назначение и устройство объекта %s "%s".
 
 Шаги:
 1. Используй инструмент get_object_structure чтобы получить полную структуру объекта (тип: %s, имя: %s) — реквизиты, табличные части, измерения, ресурсы
@@ -358,8 +336,6 @@ func handleExplainObject(_ context.Context, req *mcp.GetPromptRequest) (*mcp.Get
    - Какие данные он хранит (описание каждого реквизита и табличной части)
    - С какими другими объектами связан (ссылочные типы реквизитов)
    - Какую бизнес-логику содержат его модули
-   - Как он используется в бизнес-процессах предприятия`, objectType, objectName, objectType, objectName)},
-			},
-		},
-	}, nil
+   - Как он используется в бизнес-процессах предприятия`, objectType, objectName, objectType, objectName),
+	)
 }

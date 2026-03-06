@@ -32,23 +32,18 @@ func TestRegisterAll(t *testing.T) {
 		t.Fatalf("ListPrompts error: %v", err)
 	}
 
-	if len(result.Prompts) != 8 {
+	// Derive expected names from the source of truth.
+	expected := make(map[string]bool, len(allPrompts))
+	for _, p := range allPrompts {
+		expected[p.prompt.Name] = false
+	}
+
+	if len(result.Prompts) != len(expected) {
 		names := make([]string, len(result.Prompts))
 		for i, p := range result.Prompts {
 			names[i] = p.Name
 		}
-		t.Fatalf("expected 8 prompts, got %d: %v", len(result.Prompts), names)
-	}
-
-	expected := map[string]bool{
-		"review_module":   false,
-		"write_posting":   false,
-		"optimize_query":  false,
-		"explain_config":  false,
-		"analyze_error":   false,
-		"find_duplicates": false,
-		"write_report":    false,
-		"explain_object":  false,
+		t.Fatalf("expected %d prompts, got %d: %v", len(expected), len(result.Prompts), names)
 	}
 	for _, p := range result.Prompts {
 		if _, ok := expected[p.Name]; !ok {
@@ -60,6 +55,39 @@ func TestRegisterAll(t *testing.T) {
 		if !found {
 			t.Errorf("prompt %q not found in ListPrompts result", name)
 		}
+	}
+}
+
+func TestRequiredArg_Missing(t *testing.T) {
+	tests := []struct {
+		name string
+		req  *mcp.GetPromptRequest
+	}{
+		{
+			name: "nil params",
+			req:  &mcp.GetPromptRequest{},
+		},
+		{
+			name: "nil arguments",
+			req:  &mcp.GetPromptRequest{Params: &mcp.GetPromptParams{}},
+		},
+		{
+			name: "empty value",
+			req: &mcp.GetPromptRequest{Params: &mcp.GetPromptParams{
+				Arguments: map[string]string{"other": "value"},
+			}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := requiredArg(tt.req, "object_type")
+			if err == nil {
+				t.Fatal("expected error for missing argument")
+			}
+			if !strings.Contains(err.Error(), "object_type") {
+				t.Errorf("error should mention argument name, got: %v", err)
+			}
+		})
 	}
 }
 
