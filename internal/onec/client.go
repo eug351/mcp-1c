@@ -33,33 +33,11 @@ func NewClient(baseURL, user, password string) *Client {
 
 // Get performs a GET request to a 1C endpoint and decodes the JSON response.
 func (c *Client) Get(ctx context.Context, endpoint string, result any) error {
-	url := c.BaseURL + endpoint
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+endpoint, nil)
 	if err != nil {
 		return fmt.Errorf("creating request: %w", err)
 	}
-
-	if c.User != "" {
-		req.SetBasicAuth(c.User, c.Password)
-	}
-
-	resp, err := c.HTTPClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("executing request to 1C: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("1C returned status %d: %s", resp.StatusCode, string(body))
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(result); err != nil {
-		return fmt.Errorf("decoding 1C response: %w", err)
-	}
-
-	return nil
+	return c.do(req, result)
 }
 
 // Post performs a POST request to a 1C endpoint with a JSON body and decodes the JSON response.
@@ -69,13 +47,16 @@ func (c *Client) Post(ctx context.Context, endpoint string, body any, result any
 		return fmt.Errorf("marshaling request body: %w", err)
 	}
 
-	url := c.BaseURL + endpoint
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(data))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+endpoint, bytes.NewReader(data))
 	if err != nil {
 		return fmt.Errorf("creating request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	return c.do(req, result)
+}
 
+// do executes the request, checks the status, and decodes the JSON response.
+func (c *Client) do(req *http.Request, result any) error {
 	if c.User != "" {
 		req.SetBasicAuth(c.User, c.Password)
 	}
@@ -87,13 +68,9 @@ func (c *Client) Post(ctx context.Context, endpoint string, body any, result any
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("1C returned status %d: %s", resp.StatusCode, string(respBody))
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return fmt.Errorf("1C returned status %d: %s", resp.StatusCode, string(body))
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(result); err != nil {
-		return fmt.Errorf("decoding 1C response: %w", err)
-	}
-
-	return nil
+	return json.NewDecoder(resp.Body).Decode(result)
 }

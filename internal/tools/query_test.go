@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/feenlace/mcp-1c/internal/onec"
@@ -94,7 +95,7 @@ func TestQueryHandler(t *testing.T) {
 		"ИП Петров",
 		"772987654321",
 	} {
-		if !contains(tc.Text, want) {
+		if !strings.Contains(tc.Text, want) {
 			t.Errorf("expected text to contain %q, got:\n%s", want, tc.Text)
 		}
 	}
@@ -139,7 +140,7 @@ func TestQueryHandler_NonSelectRejected(t *testing.T) {
 			if err == nil {
 				t.Fatal("expected error for non-SELECT query")
 			}
-			if !contains(err.Error(), "SELECT") && !contains(err.Error(), "ВЫБРАТЬ") {
+			if !strings.Contains(err.Error(), "SELECT") && !strings.Contains(err.Error(), "ВЫБРАТЬ") {
 				t.Errorf("expected error to mention SELECT or ВЫБРАТЬ, got: %v", err)
 			}
 			if httpCalled {
@@ -186,7 +187,7 @@ func TestQueryHandler_Truncated(t *testing.T) {
 		t.Fatalf("expected TextContent, got %T", result.Content[0])
 	}
 
-	if !contains(tc.Text, "усечён") {
+	if !strings.Contains(tc.Text, "усечён") {
 		t.Errorf("expected text to contain 'усечён', got:\n%s", tc.Text)
 	}
 }

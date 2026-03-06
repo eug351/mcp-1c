@@ -23,36 +23,18 @@ func mock1CHandler() http.Handler {
 		"ОбщиеМодули":         {"ОбщийМодуль1"},
 	}
 
-	type attribute struct {
-		Name    string `json:"Имя"`
-		Synonym string `json:"Синоним"`
-		Type    string `json:"Тип"`
-	}
-	type tabularSection struct {
-		Name       string      `json:"Имя"`
-		Attributes []attribute `json:"Реквизиты"`
-	}
-	type objectMeta struct {
-		Name            string           `json:"Имя"`
-		Synonym         string           `json:"Синоним"`
-		Attributes      []attribute      `json:"Реквизиты"`
-		TabularSections []tabularSection `json:"ТабличныеЧасти,omitempty"`
-		Dimensions      []attribute      `json:"Измерения,omitempty"`
-		Resources       []attribute      `json:"Ресурсы,omitempty"`
-	}
-
-	objects := map[string]objectMeta{
+	objects := map[string]onec.ObjectStructure{
 		"Document/РеализацияТоваровУслуг": {
 			Name:    "РеализацияТоваровУслуг",
 			Synonym: "Реализация (акты, накладные, УПД)",
-			Attributes: []attribute{
+			Attributes: []onec.Attribute{
 				{Name: "Контрагент", Synonym: "Контрагент", Type: "СправочникСсылка.Контрагенты"},
 				{Name: "СуммаДокумента", Synonym: "Сумма", Type: "Число"},
 			},
-			TabularSections: []tabularSection{
+			TabularParts: []onec.TabularPart{
 				{
 					Name: "Товары",
-					Attributes: []attribute{
+					Attributes: []onec.Attribute{
 						{Name: "Номенклатура", Synonym: "Номенклатура", Type: "СправочникСсылка.Номенклатура"},
 						{Name: "Количество", Synonym: "Количество", Type: "Число"},
 					},
@@ -62,11 +44,11 @@ func mock1CHandler() http.Handler {
 		"AccumulationRegister/ТоварыНаСкладах": {
 			Name:    "ТоварыНаСкладах",
 			Synonym: "Товары на складах",
-			Dimensions: []attribute{
+			Dimensions: []onec.Attribute{
 				{Name: "Номенклатура", Synonym: "Номенклатура", Type: "СправочникСсылка.Номенклатура"},
 				{Name: "Склад", Synonym: "Склад", Type: "СправочникСсылка.Склады"},
 			},
-			Resources: []attribute{
+			Resources: []onec.Attribute{
 				{Name: "Количество", Synonym: "Количество", Type: "Число"},
 			},
 		},

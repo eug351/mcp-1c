@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/feenlace/mcp-1c/internal/onec"
@@ -70,7 +71,7 @@ func TestModuleCodeHandler(t *testing.T) {
 		"КонецПроцедуры",
 		"```bsl",
 	} {
-		if !contains(tc.Text, want) {
+		if !strings.Contains(tc.Text, want) {
 			t.Errorf("expected text to contain %q, got:\n%s", want, tc.Text)
 		}
 	}
@@ -114,7 +115,7 @@ func TestModuleCodeHandler_EmptyModule(t *testing.T) {
 		t.Fatalf("expected TextContent, got %T", result.Content[0])
 	}
 
-	if !contains(tc.Text, "пуст") {
+	if !strings.Contains(tc.Text, "пуст") {
 		t.Errorf("expected text to contain 'пуст', got:\n%s", tc.Text)
 	}
 }

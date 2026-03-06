@@ -59,12 +59,7 @@ func NewModuleCodeHandler(client *onec.Client) mcp.ToolHandler {
 			return nil, fmt.Errorf("fetching module code from 1C: %w", err)
 		}
 
-		text := formatModuleCode(&mod)
-		return &mcp.CallToolResult{
-			Content: []mcp.Content{
-				&mcp.TextContent{Text: text},
-			},
-		}, nil
+		return textResult(formatModuleCode(&mod)), nil
 	}
 }
 

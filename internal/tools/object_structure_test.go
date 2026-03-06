@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/feenlace/mcp-1c/internal/onec"
@@ -82,7 +83,7 @@ func TestObjectStructureHandler(t *testing.T) {
 		"Номенклатура",
 		"Количество",
 	} {
-		if !contains(tc.Text, want) {
+		if !strings.Contains(tc.Text, want) {
 			t.Errorf("expected text to contain %q, got:\n%s", want, tc.Text)
 		}
 	}
@@ -136,7 +137,7 @@ func TestObjectStructureHandler_Register(t *testing.T) {
 		"ТоварыНаСкладах", "Измерения", "Номенклатура", "Склад",
 		"Ресурсы", "Количество",
 	} {
-		if !contains(tc.Text, want) {
+		if !strings.Contains(tc.Text, want) {
 			t.Errorf("expected text to contain %q, got:\n%s", want, tc.Text)
 		}
 	}

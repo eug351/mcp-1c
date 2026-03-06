@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/feenlace/mcp-1c/internal/config"
 	"github.com/feenlace/mcp-1c/internal/installer"
@@ -53,7 +54,6 @@ func main() {
 
 	client := onec.NewClient(cfg.BaseURL, cfg.User, cfg.Password)
 
-	// Version check (non-blocking).
 	checkExtensionVersion(client)
 
 	s := server.New(client)
@@ -65,8 +65,11 @@ func main() {
 }
 
 func checkExtensionVersion(client *onec.Client) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
 	var ver onec.VersionInfo
-	if err := client.Get(context.Background(), "/version", &ver); err != nil {
+	if err := client.Get(ctx, "/version", &ver); err != nil {
 		// Version endpoint may not exist in older extensions — skip silently.
 		return
 	}

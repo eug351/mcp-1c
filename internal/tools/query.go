@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/feenlace/mcp-1c/internal/onec"
@@ -53,9 +54,13 @@ func NewQueryHandler(client *onec.Client) mcp.ToolHandler {
 			return nil, fmt.Errorf("query is required")
 		}
 
-		// Validate read-only.
-		trimmed := strings.TrimSpace(input.Query)
-		upper := strings.ToUpper(trimmed)
+		// Client-side read-only check (hint for LLM callers).
+		// Server-side 1C extension enforces read-only execution.
+		prefix := strings.TrimSpace(input.Query)
+		if len(prefix) > 30 {
+			prefix = prefix[:30]
+		}
+		upper := strings.ToUpper(prefix)
 		if !strings.HasPrefix(upper, "ВЫБРАТЬ") && !strings.HasPrefix(upper, "SELECT") {
 			return nil, fmt.Errorf("только SELECT/ВЫБРАТЬ запросы разрешены")
 		}
@@ -76,18 +81,14 @@ func NewQueryHandler(client *onec.Client) mcp.ToolHandler {
 			return nil, fmt.Errorf("executing query in 1C: %w", err)
 		}
 
-		text := formatQueryResult(&result)
-		return &mcp.CallToolResult{
-			Content: []mcp.Content{
-				&mcp.TextContent{Text: text},
-			},
-		}, nil
+		return textResult(formatQueryResult(&result)), nil
 	}
 }
 
 // formatQueryResult formats the query result as a markdown table.
 func formatQueryResult(r *onec.QueryResult) string {
 	var b strings.Builder
+	b.Grow(len(r.Columns) * len(r.Rows) * 50)
 
 	fmt.Fprintf(&b, "## Результат запроса (%d записей)\n\n", r.Total)
 
@@ -115,7 +116,7 @@ func formatQueryResult(r *onec.QueryResult) string {
 			if i > 0 {
 				b.WriteString(" | ")
 			}
-			b.WriteString(fmt.Sprintf("%v", cell))
+			b.WriteString(formatCell(cell))
 		}
 		b.WriteString(" |\n")
 	}
@@ -125,4 +126,23 @@ func formatQueryResult(r *onec.QueryResult) string {
 	}
 
 	return b.String()
+}
+
+// formatCell converts a JSON-deserialized cell value to string without reflection.
+func formatCell(v any) string {
+	switch c := v.(type) {
+	case string:
+		return c
+	case float64:
+		if c == float64(int64(c)) {
+			return strconv.FormatInt(int64(c), 10)
+		}
+		return strconv.FormatFloat(c, 'f', -1, 64)
+	case bool:
+		return strconv.FormatBool(c)
+	case nil:
+		return ""
+	default:
+		return fmt.Sprint(v)
+	}
 }

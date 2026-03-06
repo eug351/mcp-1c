@@ -27,12 +27,7 @@ func NewMetadataHandler(client *onec.Client) mcp.ToolHandler {
 			return nil, fmt.Errorf("fetching metadata from 1C: %w", err)
 		}
 
-		text := formatMetadataTree(&tree)
-		return &mcp.CallToolResult{
-			Content: []mcp.Content{
-				&mcp.TextContent{Text: text},
-			},
-		}, nil
+		return textResult(formatMetadataTree(&tree)), nil
 	}
 }
 

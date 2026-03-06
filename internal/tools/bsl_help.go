@@ -27,11 +27,7 @@ func HandleBSLHelp(_ context.Context, _ *mcp.CallToolRequest, input BSLHelpInput
 	results := bsl.Search(input.Query)
 
 	if len(results) == 0 {
-		return &mcp.CallToolResult{
-			Content: []mcp.Content{
-				&mcp.TextContent{Text: fmt.Sprintf("Функция %q не найдена в справочнике BSL.", input.Query)},
-			},
-		}, nil, nil
+		return textResult(fmt.Sprintf("Функция %q не найдена в справочнике BSL.", input.Query)), nil, nil
 	}
 
 	var sb strings.Builder
@@ -47,11 +43,7 @@ func HandleBSLHelp(_ context.Context, _ *mcp.CallToolRequest, input BSLHelpInput
 		fmt.Fprintf(&sb, "**Пример:**\n```bsl\n%s\n```\n", f.Example)
 	}
 
-	return &mcp.CallToolResult{
-		Content: []mcp.Content{
-			&mcp.TextContent{Text: sb.String()},
-		},
-	}, nil, nil
+	return textResult(sb.String()), nil, nil
 }
 
 // RegisterBSLHelp registers the bsl_syntax_help tool on the given server.

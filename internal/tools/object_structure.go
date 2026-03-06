@@ -55,12 +55,7 @@ func NewObjectStructureHandler(client *onec.Client) mcp.ToolHandler {
 			return nil, fmt.Errorf("fetching object structure from 1C: %w", err)
 		}
 
-		text := formatObjectStructure(&obj)
-		return &mcp.CallToolResult{
-			Content: []mcp.Content{
-				&mcp.TextContent{Text: text},
-			},
-		}, nil
+		return textResult(formatObjectStructure(&obj)), nil
 	}
 }
 
@@ -70,25 +65,20 @@ func formatObjectStructure(obj *onec.ObjectStructure) string {
 
 	fmt.Fprintf(&b, "# %s (%s)\n\n", obj.Name, obj.Synonym)
 
-	if len(obj.Dimensions) > 0 {
-		b.WriteString("## Измерения\n")
-		for _, attr := range obj.Dimensions {
-			fmt.Fprintf(&b, "- **%s** (%s) — %s\n", attr.Name, attr.Synonym, attr.Type)
-		}
-		b.WriteByte('\n')
+	attrSections := []struct {
+		title string
+		items []onec.Attribute
+	}{
+		{"Измерения", obj.Dimensions},
+		{"Ресурсы", obj.Resources},
+		{"Реквизиты", obj.Attributes},
 	}
-
-	if len(obj.Resources) > 0 {
-		b.WriteString("## Ресурсы\n")
-		for _, attr := range obj.Resources {
-			fmt.Fprintf(&b, "- **%s** (%s) — %s\n", attr.Name, attr.Synonym, attr.Type)
+	for _, s := range attrSections {
+		if len(s.items) == 0 {
+			continue
 		}
-		b.WriteByte('\n')
-	}
-
-	if len(obj.Attributes) > 0 {
-		b.WriteString("## Реквизиты\n")
-		for _, attr := range obj.Attributes {
+		fmt.Fprintf(&b, "## %s\n", s.title)
+		for _, attr := range s.items {
 			fmt.Fprintf(&b, "- **%s** (%s) — %s\n", attr.Name, attr.Synonym, attr.Type)
 		}
 		b.WriteByte('\n')

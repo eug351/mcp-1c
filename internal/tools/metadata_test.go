@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/feenlace/mcp-1c/internal/onec"
@@ -46,7 +47,7 @@ func TestMetadataHandler(t *testing.T) {
 
 	// Verify the text contains key metadata items.
 	for _, want := range []string{"Контрагенты", "Номенклатура", "РеализацияТоваровУслуг", "КурсыВалют", "ОстаткиТоваров", "Хозрасчетный", "ОбщегоНазначения"} {
-		if !contains(tc.Text, want) {
+		if !strings.Contains(tc.Text, want) {
 			t.Errorf("expected text to contain %q, got:\n%s", want, tc.Text)
 		}
 	}
@@ -65,15 +66,3 @@ func TestMetadataTool(t *testing.T) {
 	}
 }
 
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && searchString(s, substr)
-}
-
-func searchString(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
-}

@@ -8,30 +8,9 @@ import (
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/feenlace/mcp-1c/internal/onec"
 )
-
-// Attribute represents a metadata attribute (requisite).
-type Attribute struct {
-	Name    string `json:"Имя"`
-	Synonym string `json:"Синоним"`
-	Type    string `json:"Тип"`
-}
-
-// TabularSection represents a tabular part of a metadata object.
-type TabularSection struct {
-	Name       string      `json:"Имя"`
-	Attributes []Attribute `json:"Реквизиты"`
-}
-
-// ObjectMeta represents the full structure of a metadata object.
-type ObjectMeta struct {
-	Name            string           `json:"Имя"`
-	Synonym         string           `json:"Синоним"`
-	Attributes      []Attribute      `json:"Реквизиты"`
-	TabularSections []TabularSection `json:"ТабличныеЧасти,omitempty"`
-	Dimensions      []Attribute      `json:"Измерения,omitempty"`
-	Resources       []Attribute      `json:"Ресурсы,omitempty"`
-}
 
 // objectKey combines type and name for map lookup.
 type objectKey struct {
@@ -80,11 +59,11 @@ var (
 		},
 	}
 
-	objects = map[objectKey]ObjectMeta{
+	objects = map[objectKey]onec.ObjectStructure{
 		{typ: "Document", name: "РеализацияТоваровУслуг"}: {
 			Name:    "РеализацияТоваровУслуг",
 			Synonym: "Реализация (акты, накладные, УПД)",
-			Attributes: []Attribute{
+			Attributes: []onec.Attribute{
 				{Name: "Контрагент", Synonym: "Контрагент", Type: "СправочникСсылка.Контрагенты"},
 				{Name: "Организация", Synonym: "Организация", Type: "СправочникСсылка.Организации"},
 				{Name: "Склад", Synonym: "Склад", Type: "СправочникСсылка.Склады"},
@@ -93,10 +72,10 @@ var (
 				{Name: "СуммаДокумента", Synonym: "Сумма", Type: "Число"},
 				{Name: "Комментарий", Synonym: "Комментарий", Type: "Строка"},
 			},
-			TabularSections: []TabularSection{
+			TabularParts: []onec.TabularPart{
 				{
 					Name: "Товары",
-					Attributes: []Attribute{
+					Attributes: []onec.Attribute{
 						{Name: "Номенклатура", Synonym: "Номенклатура", Type: "СправочникСсылка.Номенклатура"},
 						{Name: "Количество", Synonym: "Количество", Type: "Число"},
 						{Name: "Цена", Synonym: "Цена", Type: "Число"},
@@ -107,7 +86,7 @@ var (
 				},
 				{
 					Name: "Услуги",
-					Attributes: []Attribute{
+					Attributes: []onec.Attribute{
 						{Name: "Номенклатура", Synonym: "Номенклатура", Type: "СправочникСсылка.Номенклатура"},
 						{Name: "Количество", Synonym: "Количество", Type: "Число"},
 						{Name: "Цена", Synonym: "Цена", Type: "Число"},
@@ -120,7 +99,7 @@ var (
 		{typ: "Catalog", name: "Контрагенты"}: {
 			Name:    "Контрагенты",
 			Synonym: "Контрагенты",
-			Attributes: []Attribute{
+			Attributes: []onec.Attribute{
 				{Name: "ИНН", Synonym: "ИНН", Type: "Строка"},
 				{Name: "КПП", Synonym: "КПП", Type: "Строка"},
 				{Name: "НаименованиеПолное", Synonym: "Полное наименование", Type: "Строка"},
@@ -128,10 +107,10 @@ var (
 				{Name: "ОсновнойДоговор", Synonym: "Основной договор", Type: "СправочникСсылка.ДоговорыКонтрагентов"},
 				{Name: "ОсновнойБанковскийСчет", Synonym: "Основной банковский счёт", Type: "СправочникСсылка.БанковскиеСчета"},
 			},
-			TabularSections: []TabularSection{
+			TabularParts: []onec.TabularPart{
 				{
 					Name: "КонтактнаяИнформация",
-					Attributes: []Attribute{
+					Attributes: []onec.Attribute{
 						{Name: "Тип", Synonym: "Тип", Type: "ПеречислениеСсылка.ТипыКонтактнойИнформации"},
 						{Name: "Представление", Synonym: "Представление", Type: "Строка"},
 					},
@@ -141,7 +120,7 @@ var (
 		{typ: "Catalog", name: "Номенклатура"}: {
 			Name:    "Номенклатура",
 			Synonym: "Номенклатура",
-			Attributes: []Attribute{
+			Attributes: []onec.Attribute{
 				{Name: "Артикул", Synonym: "Артикул", Type: "Строка"},
 				{Name: "ЕдиницаИзмерения", Synonym: "Единица измерения", Type: "СправочникСсылка.ЕдиницыИзмерения"},
 				{Name: "ВидНоменклатуры", Synonym: "Вид номенклатуры", Type: "ПеречислениеСсылка.ВидыНоменклатуры"},
@@ -152,14 +131,14 @@ var (
 		{typ: "AccumulationRegister", name: "ТоварыНаСкладах"}: {
 			Name:    "ТоварыНаСкладах",
 			Synonym: "Товары на складах",
-			Dimensions: []Attribute{
+			Dimensions: []onec.Attribute{
 				{Name: "Номенклатура", Synonym: "Номенклатура", Type: "СправочникСсылка.Номенклатура"},
 				{Name: "Склад", Synonym: "Склад", Type: "СправочникСсылка.Склады"},
 			},
-			Resources: []Attribute{
+			Resources: []onec.Attribute{
 				{Name: "Количество", Synonym: "Количество", Type: "Число"},
 			},
-			Attributes: []Attribute{},
+			Attributes: []onec.Attribute{},
 		},
 	}
 
