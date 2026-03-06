@@ -118,6 +118,69 @@ func mock1CHandler() http.Handler {
 		})
 	})
 
+	mux.HandleFunc("/search", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		json.NewEncoder(w).Encode(map[string]any{
+			"matches": []map[string]any{
+				{
+					"module":  "Document.РеализацияТоваровУслуг.ObjectModule",
+					"line":    5,
+					"context": "Процедура ОбработкаПроведения(Отказ, РежимПроведения)",
+				},
+				{
+					"module":  "Document.ПоступлениеТоваровУслуг.ObjectModule",
+					"line":    3,
+					"context": "Процедура ОбработкаПроведения(Отказ)",
+				},
+			},
+			"total": 2,
+		})
+	})
+
+	mux.HandleFunc("/form/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		json.NewEncoder(w).Encode(map[string]any{
+			"Имя":       "ФормаДокумента",
+			"Заголовок": "Реализация товаров и услуг",
+			"Элементы": []map[string]any{
+				{"Имя": "Контрагент", "Тип": "ПолеВвода", "Заголовок": "Контрагент", "ПутьКДанным": "Объект.Контрагент"},
+				{"Имя": "СуммаДокумента", "Тип": "ПолеВвода", "Заголовок": "Сумма", "ПутьКДанным": "Объект.СуммаДокумента"},
+			},
+			"Команды": []map[string]any{
+				{"Имя": "Провести", "Действие": "ПровестиИЗакрыть"},
+			},
+			"Обработчики": []map[string]any{
+				{"Событие": "ПриОткрытии", "Обработчик": "ПриОткрытии"},
+			},
+		})
+	})
+
+	mux.HandleFunc("/validate-query", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		var req struct {
+			Query string `json:"query"`
+		}
+		json.NewDecoder(r.Body).Decode(&req)
+
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		upper := strings.ToUpper(strings.TrimSpace(req.Query))
+		if strings.HasPrefix(upper, "ВЫБРАТЬ") || strings.HasPrefix(upper, "SELECT") {
+			json.NewEncoder(w).Encode(map[string]any{"valid": true})
+		} else {
+			json.NewEncoder(w).Encode(map[string]any{
+				"valid":  false,
+				"errors": []string{"Ожидается ключевое слово ВЫБРАТЬ"},
+			})
+		}
+	})
+
 	return mux
 }
 
@@ -166,7 +229,11 @@ func TestIntegration_ListTools(t *testing.T) {
 		toolNames[tool.Name] = true
 	}
 
-	expected := []string{"get_metadata_tree", "get_object_structure", "bsl_syntax_help", "get_module_code", "execute_query"}
+	expected := []string{
+		"get_metadata_tree", "get_object_structure", "bsl_syntax_help",
+		"get_module_code", "execute_query",
+		"search_code", "get_form_structure", "validate_query",
+	}
 	for _, want := range expected {
 		if !toolNames[want] {
 			t.Errorf("expected tool %q in list, got: %v", want, toolNames)
@@ -443,5 +510,106 @@ func TestIntegration_BSLSyntaxHelp(t *testing.T) {
 	}
 	if !strings.Contains(text, "StrFind") {
 		t.Errorf("expected StrFind in response, got:\n%s", text)
+	}
+}
+
+func TestIntegration_SearchCode(t *testing.T) {
+	session, cleanup := setupIntegration(t)
+	defer cleanup()
+
+	result, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "search_code",
+		Arguments: map[string]any{
+			"query": "ОбработкаПроведения",
+		},
+	})
+	if err != nil {
+		t.Fatalf("CallTool error: %v", err)
+	}
+	if len(result.Content) == 0 {
+		t.Fatal("expected non-empty content")
+	}
+
+	text := result.Content[0].(*mcp.TextContent).Text
+	for _, want := range []string{
+		"ОбработкаПроведения",
+		"РеализацияТоваровУслуг",
+		"ПоступлениеТоваровУслуг",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("expected %q in response, got:\n%s", want, text)
+		}
+	}
+}
+
+func TestIntegration_GetFormStructure(t *testing.T) {
+	session, cleanup := setupIntegration(t)
+	defer cleanup()
+
+	result, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "get_form_structure",
+		Arguments: map[string]any{
+			"object_type": "Document",
+			"object_name": "РеализацияТоваровУслуг",
+		},
+	})
+	if err != nil {
+		t.Fatalf("CallTool error: %v", err)
+	}
+	if len(result.Content) == 0 {
+		t.Fatal("expected non-empty content")
+	}
+
+	text := result.Content[0].(*mcp.TextContent).Text
+	for _, want := range []string{"ФормаДокумента", "Контрагент", "ПолеВвода", "Провести", "ПриОткрытии"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("expected %q in response, got:\n%s", want, text)
+		}
+	}
+}
+
+func TestIntegration_ValidateQuery_Valid(t *testing.T) {
+	session, cleanup := setupIntegration(t)
+	defer cleanup()
+
+	result, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "validate_query",
+		Arguments: map[string]any{
+			"query": "ВЫБРАТЬ Наименование ИЗ Справочник.Контрагенты",
+		},
+	})
+	if err != nil {
+		t.Fatalf("CallTool error: %v", err)
+	}
+	if len(result.Content) == 0 {
+		t.Fatal("expected non-empty content")
+	}
+
+	text := result.Content[0].(*mcp.TextContent).Text
+	if !strings.Contains(text, "корректен") {
+		t.Errorf("expected 'корректен' in response for valid query, got:\n%s", text)
+	}
+}
+
+func TestIntegration_ValidateQuery_Invalid(t *testing.T) {
+	session, cleanup := setupIntegration(t)
+	defer cleanup()
+
+	result, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "validate_query",
+		Arguments: map[string]any{
+			"query": "ОБНОВИТЬ Справочник.Контрагенты",
+		},
+	})
+	if err != nil {
+		t.Fatalf("CallTool error: %v", err)
+	}
+	if len(result.Content) == 0 {
+		t.Fatal("expected non-empty content")
+	}
+
+	text := result.Content[0].(*mcp.TextContent).Text
+	if !strings.Contains(text, "ошибки") {
+		t.Errorf("expected 'ошибки' in response for invalid query, got:\n%s", text)
 	}
 }

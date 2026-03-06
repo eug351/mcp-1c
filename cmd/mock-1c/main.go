@@ -280,6 +280,99 @@ func handleQuery(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
+func handleSearch(w http.ResponseWriter, r *http.Request) {
+	log.Printf("%s %s", r.Method, r.URL.Path)
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "POST required"})
+		return
+	}
+
+	var req struct {
+		Query string `json:"query"`
+		Limit int    `json:"limit"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid JSON body"})
+		return
+	}
+
+	// Simulate searching across modules.
+	matches := []map[string]any{
+		{
+			"module":  "Document.РеализацияТоваровУслуг.ObjectModule",
+			"line":    5,
+			"context": "Процедура ОбработкаПроведения(Отказ, РежимПроведения)",
+		},
+		{
+			"module":  "CommonModule.ОбщегоНазначения",
+			"line":    12,
+			"context": "Функция ТекущаяДатаСеанса() Экспорт",
+		},
+	}
+
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit < len(matches) {
+		matches = matches[:limit]
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"matches": matches,
+		"total":   len(matches),
+	})
+}
+
+func handleForm(w http.ResponseWriter, r *http.Request) {
+	log.Printf("%s %s", r.Method, r.URL.Path)
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"Имя":       "ФормаДокумента",
+		"Заголовок": "Реализация товаров и услуг",
+		"Элементы": []map[string]any{
+			{"Имя": "Контрагент", "Тип": "ПолеВвода", "Заголовок": "Контрагент", "ПутьКДанным": "Объект.Контрагент"},
+			{"Имя": "Организация", "Тип": "ПолеВвода", "Заголовок": "Организация", "ПутьКДанным": "Объект.Организация"},
+			{"Имя": "СуммаДокумента", "Тип": "ПолеВвода", "Заголовок": "Сумма", "ПутьКДанным": "Объект.СуммаДокумента"},
+			{"Имя": "ТаблицаТоваров", "Тип": "ТаблицаФормы", "Заголовок": "Товары", "ПутьКДанным": "Объект.Товары"},
+		},
+		"Команды": []map[string]any{
+			{"Имя": "ПровестиИЗакрыть", "Действие": "ПровестиИЗакрыть"},
+			{"Имя": "Записать", "Действие": "Записать"},
+		},
+		"Обработчики": []map[string]any{
+			{"Событие": "ПриОткрытии", "Обработчик": "ПриОткрытии"},
+			{"Событие": "ПередЗаписью", "Обработчик": "ПередЗаписью"},
+		},
+	})
+}
+
+func handleValidateQuery(w http.ResponseWriter, r *http.Request) {
+	log.Printf("%s %s", r.Method, r.URL.Path)
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "POST required"})
+		return
+	}
+
+	var req struct {
+		Query string `json:"query"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid JSON body"})
+		return
+	}
+
+	upper := strings.ToUpper(strings.TrimSpace(req.Query))
+	if strings.HasPrefix(upper, "ВЫБРАТЬ") || strings.HasPrefix(upper, "SELECT") {
+		writeJSON(w, http.StatusOK, map[string]any{"valid": true})
+	} else {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"valid":  false,
+			"errors": []string{"Ожидается ключевое слово ВЫБРАТЬ или SELECT"},
+		})
+	}
+}
+
 func handleVersion(w http.ResponseWriter, r *http.Request) {
 	log.Printf("%s %s", r.Method, r.URL.Path)
 	writeJSON(w, http.StatusOK, map[string]string{"version": "0.2.0"})
@@ -297,6 +390,9 @@ func main() {
 	mux.HandleFunc("/mcp/object/", handleObject)
 	mux.HandleFunc("/mcp/module/", handleModule)
 	mux.HandleFunc("/mcp/query", handleQuery)
+	mux.HandleFunc("/mcp/search", handleSearch)
+	mux.HandleFunc("/mcp/form/", handleForm)
+	mux.HandleFunc("/mcp/validate-query", handleValidateQuery)
 	mux.HandleFunc("/mcp/version", handleVersion)
 
 	addr := fmt.Sprintf(":%d", *port)
