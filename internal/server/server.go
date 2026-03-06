@@ -2,6 +2,7 @@ package server
 
 import (
 	"github.com/feenlace/mcp-1c/internal/onec"
+	"github.com/feenlace/mcp-1c/internal/prompts"
 	"github.com/feenlace/mcp-1c/internal/tools"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -20,5 +21,6 @@ func New(onecClient *onec.Client) *mcp.Server {
 	s.AddTool(tools.ModuleCodeTool(), tools.NewModuleCodeHandler(onecClient))
 	s.AddTool(tools.QueryTool(), tools.NewQueryHandler(onecClient))
 	tools.RegisterBSLHelp(s)
+	prompts.RegisterAll(s)
 	return s
 }

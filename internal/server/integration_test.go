@@ -338,6 +338,88 @@ func TestIntegration_ExecuteQuery(t *testing.T) {
 	}
 }
 
+func TestIntegration_ListPrompts(t *testing.T) {
+	session, cleanup := setupIntegration(t)
+	defer cleanup()
+
+	result, err := session.ListPrompts(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("ListPrompts error: %v", err)
+	}
+
+	expected := map[string]bool{
+		"review_module":   false,
+		"write_posting":   false,
+		"optimize_query":  false,
+		"explain_config":  false,
+		"analyze_error":   false,
+		"find_duplicates": false,
+		"write_report":    false,
+		"explain_object":  false,
+	}
+
+	for _, p := range result.Prompts {
+		if _, ok := expected[p.Name]; ok {
+			expected[p.Name] = true
+		}
+	}
+
+	for name, found := range expected {
+		if !found {
+			t.Errorf("expected prompt %q not found in ListPrompts result", name)
+		}
+	}
+
+	if len(result.Prompts) != 8 {
+		t.Errorf("expected 8 prompts, got %d", len(result.Prompts))
+	}
+}
+
+func TestIntegration_GetPrompt_ReviewModule(t *testing.T) {
+	session, cleanup := setupIntegration(t)
+	defer cleanup()
+
+	result, err := session.GetPrompt(context.Background(), &mcp.GetPromptParams{
+		Name: "review_module",
+		Arguments: map[string]string{
+			"object_type": "Document",
+			"object_name": "РеализацияТоваровУслуг",
+		},
+	})
+	if err != nil {
+		t.Fatalf("GetPrompt error: %v", err)
+	}
+
+	if result.Description == "" {
+		t.Error("expected non-empty description")
+	}
+
+	if len(result.Messages) != 1 {
+		t.Fatalf("expected 1 message, got %d", len(result.Messages))
+	}
+
+	msg := result.Messages[0]
+	if msg.Role != "user" {
+		t.Errorf("expected role \"user\", got %q", msg.Role)
+	}
+
+	tc, ok := msg.Content.(*mcp.TextContent)
+	if !ok {
+		t.Fatalf("expected *mcp.TextContent, got %T", msg.Content)
+	}
+
+	for _, keyword := range []string{
+		"Document",
+		"РеализацияТоваровУслуг",
+		"get_object_structure",
+		"get_module_code",
+	} {
+		if !strings.Contains(tc.Text, keyword) {
+			t.Errorf("expected %q in prompt text, got:\n%s", keyword, tc.Text)
+		}
+	}
+}
+
 func TestIntegration_BSLSyntaxHelp(t *testing.T) {
 	session, cleanup := setupIntegration(t)
 	defer cleanup()
