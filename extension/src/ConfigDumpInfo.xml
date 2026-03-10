@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="UTF-8"?>
-<ConfigDumpInfo xmlns="http://v8.1c.ru/8.3/xcf/dumpinfo" xmlns:xen="http://v8.1c.ru/8.3/xcf/enums" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" format="Hierarchical" version="2.21">
+<ConfigDumpInfo xmlns="http://v8.1c.ru/8.3/xcf/dumpinfo" xmlns:xen="http://v8.1c.ru/8.3/xcf/enums" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" format="Hierarchical" version="2.10">
 	<ConfigVersions>
 		<Metadata name="Configuration.MCP_HTTPService" id="a433a1ba-b9a1-44df-b501-26612e947f96" configVersion="154cf64d0c0ad9f203eb76545d5bea4c9b252a75"/>
 		<Metadata name="HTTPService.MCPService" id="93b52b96-1872-4900-931f-30f172dcdeed" configVersion="ca9592e6aff89ccc175917cf27e1eb6e13477071">

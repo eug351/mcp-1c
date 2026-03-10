@@ -8,16 +8,51 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-        "regexp"
+	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 )
 
 const extensionName = "MCP_HTTPService"
 
+// defaultFormatVersion is the fallback XML dump format version used when the
+// platform version cannot be detected. 2.10 is the format for 1C 8.3.14-8.3.16
+// (the minimum platform we support).
+const defaultFormatVersion = "2.10"
 
-// Install extracts embedded XML sources to a temp dir, reads the target database's
-// compatibility settings, patches the extension XML to match, and loads it into 1C.
+// platform85FormatVersion is the XML dump format version for 1C 8.5.x.
+const platform85FormatVersion = "2.21"
+
+// platformFormatVersions maps 1C platform minor versions to the XML dump format
+// version they introduced. Platforms can load XML with format versions up to and
+// including their own, but reject anything newer.
+//
+// Source: official 1C release notes (1cv8upd), each version states
+// "Версия формата выгрузки конфигурации в XML-файлы стала равной X.XX".
+//
+// The extension only uses basic objects (HTTPService, Role, Language) that exist
+// in all format versions, so downgrading is always safe for this extension.
+// MUST be sorted by minMinor descending.
+var platformFormatVersions = []struct {
+	minMinor int    // minimum platform minor version (8.3.X)
+	version  string // XML format version
+}{
+	{27, "2.20"},
+	{26, "2.19"},
+	{25, "2.18"},
+	{24, "2.17"},
+	{23, "2.16"},
+	{22, "2.15"},
+	{21, "2.14"},
+	{20, "2.13"},
+	{19, "2.12"},
+	{17, "2.11"},
+	{14, "2.10"},
+}
+
+// Install extracts embedded XML sources to a temp dir, patches the XML format
+// version for compatibility with the detected platform, and loads it into 1C.
 // If platformExe is empty, the platform is auto-detected.
 func Install(srcFS embed.FS, dbPath, platformExe, dbUser, dbPassword string) error {
 	if platformExe == "" {
@@ -40,18 +75,11 @@ func Install(srcFS embed.FS, dbPath, platformExe, dbUser, dbPassword string) err
 		return fmt.Errorf("extracting extension sources: %w", err)
 	}
 
-	// TODO: auto-detect compatibility mode from database and patch extension XML.
-	// Disabled for now — hardcoded Version8_3_14 in extension XML works for most databases.
-	//
-	// dumpDir, err := os.MkdirTemp("", "mcp-1c-dump-*")
-	// defer os.RemoveAll(dumpDir)
-	// listFile := filepath.Join(dumpDir, "dump-list.txt")
-	// os.WriteFile(listFile, []byte("Configuration\n"), 0o644)
-	// runDesigner(platformExe, dbPath, dbUser, dbPassword, "/DumpConfigToFiles", dumpDir, "-listFile", listFile)
-	// mainCfg, _ := os.ReadFile(filepath.Join(dumpDir, "Configuration.xml"))
-	// compatMode := extractXMLTag(string(mainCfg), "CompatibilityMode")
-	// interfaceMode := extractXMLTag(string(mainCfg), "InterfaceCompatibilityMode")
-	// patchExtensionXML(filepath.Join(extDir, "Configuration.xml"), compatMode, interfaceMode)
+	// Patch XML format version to match the target platform.
+	fmtVer := formatVersionForPlatform(platformExe)
+	if err := patchFormatVersion(extDir, fmtVer); err != nil {
+		return fmt.Errorf("patching format version: %w", err)
+	}
 
 	// Load extension XML into extension configuration.
 	fmt.Println("Loading extension into database...")
@@ -180,6 +208,88 @@ func FindPlatform() (string, error) {
 		}
 	}
 	return "", fmt.Errorf("1C platform not found in standard paths")
+}
+
+// versionAttrRe matches the 1C XML dump format version attribute (version="2.XX").
+// The pattern specifically targets version 2.x to avoid touching the XML declaration
+// (<?xml version="1.0" ...?>), which uses version 1.0.
+var versionAttrRe = regexp.MustCompile(`(\bversion=")(2\.\d+)(")`)
+
+// platformVersionRe extracts the 8.Major.Minor.Patch version from a platform path.
+// Works with paths like:
+//   - C:\Program Files\1cv8\8.3.27.1859\bin\1cv8.exe
+//   - /opt/1cv8/x86_64/8.3.22.1709/1cv8
+//   - /Applications/1cv8.localized/8.3.25.1000/1cv8.app/Contents/MacOS/1cv8
+var platformVersionRe = regexp.MustCompile(`8\.(\d+)\.(\d+)`)
+
+// extractPlatformMinor parses the platform path and returns the minor version number.
+// For "8.3.27.1859" it returns (3, 27, true). For "8.5.1.100" it returns (5, 1, true).
+// If the version cannot be parsed, it returns (0, 0, false).
+func extractPlatformMinor(platformExe string) (major, minor int, ok bool) {
+	m := platformVersionRe.FindStringSubmatch(platformExe)
+	if len(m) < 3 {
+		return 0, 0, false
+	}
+	maj, err1 := strconv.Atoi(m[1])
+	min, err2 := strconv.Atoi(m[2])
+	if err1 != nil || err2 != nil {
+		return 0, 0, false
+	}
+	return maj, min, true
+}
+
+// formatVersionForPlatform determines the best XML format version for the given
+// platform executable path. If the platform version cannot be detected, returns
+// defaultFormatVersion (the safest baseline).
+func formatVersionForPlatform(platformExe string) string {
+	major, minor, ok := extractPlatformMinor(platformExe)
+	if !ok {
+		return defaultFormatVersion
+	}
+
+	// Platform 8.5+ uses format 2.21.
+	if major >= 5 {
+		return platform85FormatVersion
+	}
+
+	// Platform 8.3.X: find the highest format version it supports.
+	if major == 3 {
+		for _, pv := range platformFormatVersions {
+			if minor >= pv.minMinor {
+				return pv.version
+			}
+		}
+	}
+
+	return defaultFormatVersion
+}
+
+// patchFormatVersion walks the extension directory and rewrites the version="X.YZ"
+// attribute in all XML files to match the target platform. This allows the same
+// extension source to be loaded by older 1C platforms that do not recognize newer
+// XML dump format versions.
+func patchFormatVersion(dir, targetVersion string) error {
+	replacement := []byte("${1}" + targetVersion + "${3}")
+	return filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() || !strings.HasSuffix(strings.ToLower(path), ".xml") {
+			return nil
+		}
+
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("reading %s: %w", path, err)
+		}
+
+		patched := versionAttrRe.ReplaceAll(data, replacement)
+		if bytes.Equal(patched, data) {
+			return nil
+		}
+
+		return os.WriteFile(path, patched, 0o644)
+	})
 }
 
 // platformPatterns returns glob patterns for finding 1C platform binary on the current OS.
