@@ -532,6 +532,57 @@ func parseModuleName(fullName string) moduleNameParts {
 	}
 }
 
+// IndexDoc adds or replaces a document in the index at runtime.
+// The document is routed to a shard by FNV-1a hash of the id.
+// It updates contentByName but does NOT modify names/ModuleCount (by design:
+// runtime-added docs are transient and not part of the initial file scan).
+// Requires Ready() == true.
+func (idx *Index) IndexDoc(id string, content string) error {
+	if !idx.ready.Load() {
+		return fmt.Errorf("index not ready: cannot IndexDoc while building")
+	}
+
+	parts := parseModuleName(id)
+	doc := bslDocument{
+		Name:     parts.name,
+		Category: parts.category,
+		Module:   parts.module,
+		Content:  content,
+	}
+
+	si := shardForID(id, len(idx.shards))
+	if err := idx.shards[si].Index(id, doc); err != nil {
+		return fmt.Errorf("indexing doc %q in shard %d: %w", id, si, err)
+	}
+
+	idx.mu.Lock()
+	idx.contentByName[id] = content
+	idx.mu.Unlock()
+
+	return nil
+}
+
+// DeleteDoc removes a document from the index at runtime.
+// The shard is determined by FNV-1a hash of the id (same routing as IndexDoc).
+// It removes the entry from contentByName but does NOT modify names/ModuleCount.
+// Requires Ready() == true.
+func (idx *Index) DeleteDoc(id string) error {
+	if !idx.ready.Load() {
+		return fmt.Errorf("index not ready: cannot DeleteDoc while building")
+	}
+
+	si := shardForID(id, len(idx.shards))
+	if err := idx.shards[si].Delete(id); err != nil {
+		return fmt.Errorf("deleting doc %q from shard %d: %w", id, si, err)
+	}
+
+	idx.mu.Lock()
+	delete(idx.contentByName, id)
+	idx.mu.Unlock()
+
+	return nil
+}
+
 // Search finds matches in indexed BSL modules. Dispatches by mode.
 func (idx *Index) Search(params SearchParams) ([]Match, int, error) {
 	if !idx.ready.Load() {

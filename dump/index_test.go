@@ -530,3 +530,119 @@ func TestIndex_CloseWhileBuilding(t *testing.T) {
 		t.Fatal("build goroutine did not exit after Close()")
 	}
 }
+
+func TestIndex_IndexDoc(t *testing.T) {
+	dir := t.TempDir()
+	mkBSLFile(t, dir, "Catalogs/Тест/Ext/ObjectModule.bsl", "Процедура Тест()\nКонецПроцедуры\n")
+
+	idx, err := NewIndex(dir, false)
+	if err != nil {
+		t.Fatalf("NewIndex: %v", err)
+	}
+	defer idx.Close()
+	waitReady(t, idx, 30*time.Second)
+
+	err = idx.IndexDoc("Справочник.Новый.МодульОбъекта", "Функция НоваяФункция()\n\tВозврат 1;\nКонецФункции\n")
+	if err != nil {
+		t.Fatalf("IndexDoc: %v", err)
+	}
+
+	matches, total, err := idx.Search(SearchParams{Query: "НоваяФункция", Mode: SearchModeSmart, Limit: 50})
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	if total == 0 || len(matches) == 0 {
+		t.Error("expected to find runtime-indexed document")
+	}
+
+	idx.mu.RLock()
+	_, ok := idx.contentByName["Справочник.Новый.МодульОбъекта"]
+	idx.mu.RUnlock()
+	if !ok {
+		t.Error("expected contentByName to contain the new document")
+	}
+
+	if idx.ModuleCount() != 1 {
+		t.Errorf("expected ModuleCount to remain 1, got %d", idx.ModuleCount())
+	}
+}
+
+func TestIndex_DeleteDoc(t *testing.T) {
+	dir := t.TempDir()
+	mkBSLFile(t, dir, "Catalogs/Тест/Ext/ObjectModule.bsl", "Процедура Удаляемая()\nКонецПроцедуры\n")
+
+	idx, err := NewIndex(dir, false)
+	if err != nil {
+		t.Fatalf("NewIndex: %v", err)
+	}
+	defer idx.Close()
+	waitReady(t, idx, 30*time.Second)
+
+	docID := "Справочник.Тест.МодульОбъекта"
+
+	matches, _, err := idx.Search(SearchParams{Query: "Удаляемая", Mode: SearchModeSmart, Limit: 50})
+	if err != nil {
+		t.Fatalf("Search before delete: %v", err)
+	}
+	if len(matches) == 0 {
+		t.Fatal("expected to find document before delete")
+	}
+
+	err = idx.DeleteDoc(docID)
+	if err != nil {
+		t.Fatalf("DeleteDoc: %v", err)
+	}
+
+	matches, _, err = idx.Search(SearchParams{Query: "Удаляемая", Mode: SearchModeExact, Limit: 50})
+	if err != nil {
+		t.Fatalf("Search after delete: %v", err)
+	}
+	if len(matches) != 0 {
+		t.Errorf("expected 0 matches after delete, got %d", len(matches))
+	}
+
+	idx.mu.RLock()
+	_, ok := idx.contentByName[docID]
+	idx.mu.RUnlock()
+	if ok {
+		t.Error("expected contentByName to NOT contain deleted document")
+	}
+}
+
+func TestIndex_IndexDoc_NotReady(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	idx := &Index{
+		dir:           t.TempDir(),
+		alias:         bleve.NewIndexAlias(),
+		contentByName: make(map[string]string),
+		ctx:           ctx,
+		cancel:        cancel,
+		done:          make(chan struct{}),
+	}
+	defer close(idx.done)
+
+	err := idx.IndexDoc("test", "content")
+	if err == nil {
+		t.Fatal("expected error when IndexDoc on not-ready index")
+	}
+}
+
+func TestIndex_DeleteDoc_NotReady(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	idx := &Index{
+		dir:           t.TempDir(),
+		alias:         bleve.NewIndexAlias(),
+		contentByName: make(map[string]string),
+		ctx:           ctx,
+		cancel:        cancel,
+		done:          make(chan struct{}),
+	}
+	defer close(idx.done)
+
+	err := idx.DeleteDoc("test")
+	if err == nil {
+		t.Fatal("expected error when DeleteDoc on not-ready index")
+	}
+}
