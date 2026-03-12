@@ -74,7 +74,8 @@ func main() {
 			os.Exit(1)
 		}
 		defer dumpIndex.Close()
-		fmt.Fprintf(os.Stderr, "Indexed %d BSL modules from dump\n", dumpIndex.ModuleCount())
+		// Index builds in background. Progress and errors are reported via stderr
+		// from the build goroutine. ModuleCount is available after Ready().
 	}
 
 	s := server.New(version, client, dumpIndex)
