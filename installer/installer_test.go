@@ -217,11 +217,11 @@ func TestFormatVersionForPlatform(t *testing.T) {
 		path string
 		want string
 	}{
-		// Oldest supported platforms (8.3.14-8.3.16) get baseline 2.10.
-		{`C:\Program Files\1cv8\8.3.14.2000\bin\1cv8.exe`, "2.10"},
-		{`C:\Program Files\1cv8\8.3.16.2000\bin\1cv8.exe`, "2.10"},
-		// Each subsequent version gets its correct format.
-		{`C:\Program Files\1cv8\8.3.17.2000\bin\1cv8.exe`, "2.11"},
+		// Each platform version gets its correct format.
+		{`C:\Program Files\1cv8\8.3.14.2000\bin\1cv8.exe`, "2.8"},
+		{`C:\Program Files\1cv8\8.3.15.2000\bin\1cv8.exe`, "2.9"},
+		{`C:\Program Files\1cv8\8.3.16.2000\bin\1cv8.exe`, "2.9.1"},
+		{`C:\Program Files\1cv8\8.3.17.2000\bin\1cv8.exe`, "2.10"},
 		{`C:\Program Files\1cv8\8.3.18.2000\bin\1cv8.exe`, "2.11"},
 		{`C:\Program Files\1cv8\8.3.19.2000\bin\1cv8.exe`, "2.12"},
 		{`C:\Program Files\1cv8\8.3.20.2000\bin\1cv8.exe`, "2.13"},

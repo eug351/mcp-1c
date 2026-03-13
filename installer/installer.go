@@ -17,9 +17,9 @@ import (
 const extensionName = "MCP_HTTPService"
 
 // defaultFormatVersion is the fallback XML dump format version used when the
-// platform version cannot be detected. 2.10 is the format for 1C 8.3.14-8.3.16
-// (the minimum platform we support).
-const defaultFormatVersion = "2.10"
+// platform version cannot be detected. 2.8 is the format for 1C 8.3.14 —
+// the minimum platform version we support.
+const defaultFormatVersion = "2.8"
 
 // platform85FormatVersion is the XML dump format version for 1C 8.5.x.
 const platform85FormatVersion = "2.21"
@@ -47,8 +47,11 @@ var platformFormatVersions = []struct {
 	{21, "2.14"},
 	{20, "2.13"},
 	{19, "2.12"},
-	{17, "2.11"},
-	{14, "2.10"},
+	{18, "2.11"},
+	{17, "2.10"},
+	{16, "2.9.1"},
+	{15, "2.9"},
+	{14, "2.8"},
 }
 
 // Install extracts embedded XML sources to a temp dir, patches the XML format
@@ -224,10 +227,10 @@ func FindPlatform() (string, error) {
 	return "", fmt.Errorf("1C platform not found in standard paths")
 }
 
-// versionAttrRe matches the 1C XML dump format version attribute (version="2.XX").
-// The pattern specifically targets version 2.x to avoid touching the XML declaration
-// (<?xml version="1.0" ...?>), which uses version 1.0.
-var versionAttrRe = regexp.MustCompile(`(\bversion=")(2\.\d+)(")`)
+// versionAttrRe matches the 1C XML dump format version attribute (version="2.X" or
+// version="2.X.Y"). The "2." prefix naturally excludes the XML declaration
+// (<?xml version="1.0"?>), so no separate guard is needed.
+var versionAttrRe = regexp.MustCompile(`(version=")2\.\d+(?:\.\d+)?(")`)
 
 // platformVersionRe extracts the 8.Major.Minor.Patch version from a platform path.
 // Works with paths like:
@@ -278,12 +281,12 @@ func formatVersionForPlatform(platformExe string) string {
 	return defaultFormatVersion
 }
 
-// patchFormatVersion walks the extension directory and rewrites the version="X.YZ"
-// attribute in all XML files to match the target platform. This allows the same
-// extension source to be loaded by older 1C platforms that do not recognize newer
-// XML dump format versions.
+// patchFormatVersion walks the extension directory and rewrites the 1C XML dump
+// format version attribute (version="2.X") in all XML files to match the target
+// platform. This allows the same extension source to be loaded by older 1C
+// platforms that do not recognize newer format versions.
 func patchFormatVersion(dir, targetVersion string) error {
-	replacement := []byte("${1}" + targetVersion + "${3}")
+	replacement := []byte("${1}" + targetVersion + "${2}")
 	return filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
