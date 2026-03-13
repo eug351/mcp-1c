@@ -41,11 +41,14 @@ mcp-1c --install "srv-1c\buh_prod" --server --db-user Admin --db-password pass
 
 ### 3. Запустить HTTP-сервис 1С
 
+**Рекомендуемый способ** — стандартная публикация через Apache или IIS (Конфигуратор → Администрирование → Публикация на веб-сервере). Работает на Windows и Linux. Подробности — в [пошаговой инструкции](docs/getting-started.md#шаг-3-запустить-http-сервис-1с).
+
+**Быстрый запуск для разработки (только Windows):**
 ```cmd
 "C:\Program Files\1cv8\8.3.XX.XXXX\bin\1cv8.exe" ENTERPRISE /F "C:\путь\к\базе" /HTTPPort 8080
 ```
 
-> Встроенный HTTP-сервер (`/HTTPPort`) доступен только на Windows. На macOS и Linux используйте публикацию через Apache.
+> Параметр `/HTTPPort` — недокументированный, работает **только на Windows** и подходит для быстрой проверки. На Linux используйте Apache или ibsrv, на macOS HTTP-сервисы 1С не поддерживаются.
 
 ### 4. Настроить AI-клиент
 
@@ -129,9 +132,9 @@ scripts\build-extension.cmd C:\Users\User\Documents\InfoBase
 
 | ОС | MCP-сервер | Автоустановка | HTTP-сервис 1С |
 |----|-----------|---------------|----------------|
-| Windows | да | да | да (встроенный /HTTPPort или Apache/IIS) |
+| Windows | да | да | да (Apache/IIS — рекомендуется, /HTTPPort — для быстрого запуска) |
 | macOS | да | да | нет (ограничение платформы 1С), используйте Windows-VM |
-| Linux | да | да | да (через Apache или ibsrv) |
+| Linux | да | да | да (Apache или ibsrv; /HTTPPort недоступен) |
 
 ## Лицензия
 
