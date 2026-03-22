@@ -1,7 +1,7 @@
 .PHONY: build test clean release mock
 
 VERSION ?= dev
-LDFLAGS := -X main.version=$(VERSION)
+LDFLAGS := -s -w -X main.version=$(VERSION)
 
 build:
 	go build -ldflags "$(LDFLAGS)" -o bin/mcp-1c ./cmd/mcp-1c
