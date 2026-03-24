@@ -149,6 +149,7 @@ type Index struct {
 	contentByName map[string]string // cache: docID -> content (lazy populated)
 	pathByName    map[string]string // docID -> absolute file path (always populated)
 	pathToDocID   map[string]string // relative path (ToSlash) -> module name
+	pathIndex     *PathIndex        // decomposed path index for fast category/module filtering
 	ready         atomic.Bool
 	mu            sync.RWMutex
 	contentMu     sync.RWMutex // protects lazy content loading
@@ -260,6 +261,7 @@ func NewIndex(dir string, reindex bool) (*Index, error) {
 						}
 					}
 
+					idx.pathIndex = NewPathIndex(idx.names)
 					idx.ready.Store(true)
 					fmt.Fprintf(os.Stderr, "Opened cached index (%d shards) for %d BSL modules\n",
 						len(shards), len(idx.names))
@@ -294,6 +296,7 @@ func (idx *Index) buildShards(cpath string, useCache bool) {
 
 	total := len(idx.names)
 	if total == 0 {
+		idx.pathIndex = NewPathIndex(nil)
 		idx.ready.Store(true)
 		fmt.Fprintln(os.Stderr, "No BSL modules found, index is empty")
 		return
@@ -376,6 +379,7 @@ func (idx *Index) buildShards(cpath string, useCache bool) {
 
 	idx.shards = shards
 	idx.alias.Add(shards...)
+	idx.pathIndex = NewPathIndex(idx.names)
 	idx.ready.Store(true)
 
 	// Save manifest for future incremental updates.
@@ -734,6 +738,9 @@ func (idx *Index) IndexDoc(id string, content string) error {
 	_, inPath := idx.pathByName[id]
 	if !inContent && !inPath {
 		idx.names = append(idx.names, id)
+		if idx.pathIndex != nil {
+			idx.pathIndex.AddEntry(id)
+		}
 	}
 	idx.contentByName[id] = content
 	idx.mu.Unlock()
@@ -770,6 +777,9 @@ func (idx *Index) IndexDocWithMeta(id, content, category, module string) error {
 	_, inPath := idx.pathByName[id]
 	if !inContent && !inPath {
 		idx.names = append(idx.names, id)
+		if idx.pathIndex != nil {
+			idx.pathIndex.AddEntryWithMeta(id, category, module)
+		}
 	}
 	idx.contentByName[id] = content
 	idx.mu.Unlock()
@@ -798,6 +808,9 @@ func (idx *Index) DeleteDoc(id string) error {
 	idx.mu.Lock()
 	delete(idx.contentByName, id)
 	delete(idx.pathByName, id)
+	if idx.pathIndex != nil {
+		idx.pathIndex.RemoveEntry(id)
+	}
 	for i, n := range idx.names {
 		if n == id {
 			idx.names = append(idx.names[:i], idx.names[i+1:]...)
@@ -959,42 +972,29 @@ func (idx *Index) searchLineByLine(params SearchParams, match func(line, q strin
 }
 
 // filterModules returns the subset of module names matching category/module filters.
-// If no filters are set, returns all names. Uses Bleve for efficient filtering.
+// If no filters are set, returns all names. Uses PathIndex for fast in-memory filtering.
 func (idx *Index) filterModules(category, moduleType string) ([]string, error) {
 	if category == "" && moduleType == "" {
 		return idx.names, nil
 	}
 
-	// Use Bleve to filter by category/module.
-	queries := []query.Query{bleve.NewMatchAllQuery()}
-	if category != "" {
-		tq := bleve.NewTermQuery(category)
-		tq.SetField("category")
-		queries = append(queries, tq)
-	}
-	if moduleType != "" {
-		tq := bleve.NewTermQuery(moduleType)
-		tq.SetField("module")
-		queries = append(queries, tq)
+	// Use PathIndex for fast in-memory filtering (no Bleve query needed).
+	if idx.pathIndex != nil {
+		return idx.pathIndex.FilterDocIDs(category, moduleType), nil
 	}
 
-	q := bleve.NewConjunctionQuery(queries...)
-	req := bleve.NewSearchRequestOptions(q, len(idx.names), 0, false)
-	result, err := idx.alias.Search(req)
-	if err != nil {
-		return nil, fmt.Errorf("bleve filter: %w", err)
-	}
-
-	idx.mu.RLock()
-	defer idx.mu.RUnlock()
-
-	names := make([]string, 0, len(result.Hits))
-	for _, hit := range result.Hits {
-		_, inContent := idx.contentByName[hit.ID]
-		_, inPath := idx.pathByName[hit.ID]
-		if inContent || inPath {
-			names = append(names, hit.ID)
+	// Fallback: linear scan if pathIndex is not yet built (should not happen
+	// since filterModules is only called after Ready() == true).
+	var names []string
+	for _, name := range idx.names {
+		parts := parseModuleName(name)
+		if category != "" && parts.category != category {
+			continue
 		}
+		if moduleType != "" && parts.module != moduleType {
+			continue
+		}
+		names = append(names, name)
 	}
 	return names, nil
 }
@@ -1113,6 +1113,15 @@ func (idx *Index) ModuleCount() int {
 // Dir returns the dump directory path.
 func (idx *Index) Dir() string {
 	return idx.dir
+}
+
+// GetPathIndex returns the path index for fast category/module filtering.
+// Returns nil if the index is not yet ready.
+func (idx *Index) GetPathIndex() *PathIndex {
+	if !idx.ready.Load() {
+		return nil
+	}
+	return idx.pathIndex
 }
 
 // applyIncrementalUpdate loads the manifest, diffs against the filesystem,
