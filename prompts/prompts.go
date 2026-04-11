@@ -170,6 +170,7 @@ func promptResult(description, text string) (*mcp.GetPromptResult, error) {
 	}, nil
 }
 
+//garble:ignore
 func handleReviewModule(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
 	objectType, objectName, err := requiredObjectArgs(req)
 	if err != nil {
@@ -194,6 +195,7 @@ func handleReviewModule(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetP
 	)
 }
 
+//garble:ignore
 func handleWritePosting(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
 	documentName, err := requiredArg(req, "document_name")
 	if err != nil {
@@ -218,6 +220,7 @@ func handleWritePosting(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetP
 	)
 }
 
+//garble:ignore
 func handleOptimizeQuery(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
 	query, err := requiredArg(req, "query")
 	if err != nil {
@@ -245,6 +248,7 @@ func handleOptimizeQuery(_ context.Context, req *mcp.GetPromptRequest) (*mcp.Get
 	)
 }
 
+//garble:ignore
 func handleExplainConfig(_ context.Context, _ *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
 	return promptResult(
 		"Объяснение структуры конфигурации 1С",
@@ -266,6 +270,7 @@ func handleExplainConfig(_ context.Context, _ *mcp.GetPromptRequest) (*mcp.GetPr
 	)
 }
 
+//garble:ignore
 func handleAnalyzeError(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
 	errorText, err := requiredArg(req, "error_text")
 	if err != nil {
@@ -292,6 +297,7 @@ func handleAnalyzeError(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetP
 	)
 }
 
+//garble:ignore
 func handleFindDuplicates(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
 	objectType, objectName, err := requiredObjectArgs(req)
 	if err != nil {
@@ -318,6 +324,7 @@ func handleFindDuplicates(_ context.Context, req *mcp.GetPromptRequest) (*mcp.Ge
 	)
 }
 
+//garble:ignore
 func handleWriteReport(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
 	description, err := requiredArg(req, "description")
 	if err != nil {
@@ -343,6 +350,7 @@ func handleWriteReport(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetPr
 	)
 }
 
+//garble:ignore
 func handleExplainObject(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
 	objectType, objectName, err := requiredObjectArgs(req)
 	if err != nil {
@@ -366,6 +374,7 @@ func handleExplainObject(_ context.Context, req *mcp.GetPromptRequest) (*mcp.Get
 	)
 }
 
+//garble:ignore
 func handle1CQuerySyntax(_ context.Context, _ *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
 	return promptResult(
 		"Синтаксис запросов 1С",
@@ -440,6 +449,7 @@ func handle1CQuerySyntax(_ context.Context, _ *mcp.GetPromptRequest) (*mcp.GetPr
 	)
 }
 
+//garble:ignore
 func handle1CMetadataNavigation(_ context.Context, _ *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
 	return promptResult(
 		"Навигация по метаданным конфигурации 1С",
@@ -483,6 +493,7 @@ func handle1CMetadataNavigation(_ context.Context, _ *mcp.GetPromptRequest) (*mc
 	)
 }
 
+//garble:ignore
 func handle1CDevelopmentWorkflow(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
 	task, err := requiredArg(req, "task")
 	if err != nil {
